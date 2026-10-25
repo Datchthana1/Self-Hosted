@@ -1,0 +1,13 @@
+services:
+  dns:
+    image: coredns/coredns:1.12.0
+    restart: unless-stopped
+    command: -conf /Corefile
+    environment:
+      # Used by {$DNS_IP} in the Corefile. Set it in .env (see .env.example)
+      DNS_IP: ${DNS_IP}
+    ports:
+      - '${DNS_IP}:53:53/udp'
+      - '${DNS_IP}:53:53/tcp'
+    volumes:
+      - ./Corefile:/Corefile:ro

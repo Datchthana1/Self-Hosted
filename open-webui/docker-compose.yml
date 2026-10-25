@@ -1,0 +1,37 @@
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.12.3
+    restart: unless-stopped
+    ports:
+      - '3000:8080'
+    environment:
+      TZ: "Asia/Bangkok"
+      # Ollama runs natively on Windows (uses the RTX 4060)
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      WEBUI_URL: "http://openwebui.dechthana.com"
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - open-webui_data:/app/backend/data
+    depends_on:
+      - searxng
+    networks:
+      - default
+      - npm
+
+  # Private meta search engine used by Open WebUI web search (no API key needed)
+  searxng:
+    image: searxng/searxng:2026.10.19-81371861f
+    restart: unless-stopped
+    environment:
+      SEARXNG_BASE_URL: "http://searxng:8080/"
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+
+volumes:
+  open-webui_data:
+
+networks:
+  npm:
+    name: nginx-proxy-manager_default
+    external: true

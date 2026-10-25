@@ -1,0 +1,11 @@
+*/*.env
+*/config
+*/data
+*/certs
+/Corefile.txt
+
+
+*/postgres_data
+*/letsencrypt
+*/.env
+**/searxng/settings.yml
