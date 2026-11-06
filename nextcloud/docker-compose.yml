@@ -1,0 +1,81 @@
+services:
+  nextcloud:
+    image: nextcloud:35.0.2-apache
+    restart: unless-stopped
+    # No host port: only reachable through NPM on the npm network
+    environment:
+      TZ: "Asia/Bangkok"
+      POSTGRES_HOST: "db"
+      POSTGRES_DB: "nextcloud"
+      POSTGRES_USER: "nextcloud"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: "redis"
+      # Only used for the first install
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: "nextcloud.dechthana.com"
+      # Behind NPM, which is HTTP only for now
+      TRUSTED_PROXIES: "172.18.0.0/16"
+      OVERWRITEHOST: "nextcloud.dechthana.com"
+      OVERWRITEPROTOCOL: "http"
+      OVERWRITECLIURL: "http://nextcloud.dechthana.com"
+      PHP_MEMORY_LIMIT: "1G"
+      PHP_UPLOAD_LIMIT: "16G"
+    volumes:
+      - html:/var/www/html
+      # User files live on the D: drive, and all of D: is editable
+      # through the External Storage app
+      - D:/Nextcloud/data:/var/www/html/data
+      - D:/:/mnt/d
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - default
+      - npm
+
+  # Background jobs, shares the app's code and data
+  cron:
+    image: nextcloud:35.0.2-apache
+    restart: unless-stopped
+    entrypoint: /cron.sh
+    environment:
+      TZ: "Asia/Bangkok"
+    volumes:
+      - html:/var/www/html
+      - D:/Nextcloud/data:/var/www/html/data
+      - D:/:/mnt/d
+    depends_on:
+      - nextcloud
+
+  # Kept in a named volume: Postgres is unreliable on Windows bind mounts
+  db:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    environment:
+      TZ: "Asia/Bangkok"
+      POSTGRES_DB: "nextcloud"
+      POSTGRES_USER: "nextcloud"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nextcloud -d nextcloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8.10.3-alpine
+    restart: unless-stopped
+
+volumes:
+  html:
+  db_data:
+
+networks:
+  npm:
+    name: nginx-proxy-manager_default
+    external: true
